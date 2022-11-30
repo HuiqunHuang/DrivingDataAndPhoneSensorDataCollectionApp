@@ -1,0 +1,83 @@
+/**
+ * Copyright 2016,2019 IBM Corp. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 28
+
+    defaultConfig {
+        applicationId "odbii.starter.automotive.iot.ibm.com.iot4a_odbii_Edited_20200201_Without_Internet"
+        minSdkVersion 21
+        targetSdkVersion 28
+        versionCode 8
+        versionName "2.0.0"
+        multiDexEnabled true
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    packagingOptions {
+        exclude 'META-INF/DEPENDENCIES'
+    }
+
+    applicationVariants.all { variant ->
+        def buildDate = new Date().format("yyyyMMdd")
+        def versionLabel = "Version: " + variant.versionName + " Build: " + buildDate
+        variant.resValue "string", "versionLabel", versionLabel
+        variant.outputs.all { output ->
+            if (output.outputFile != null && output.outputFile.name.endsWith('.apk')) {
+                outputFileName = "iota_obd2_${buildDate}.apk"
+            }
+        }
+    }
+}
+
+repositories {
+    maven {
+        url "https://repo.eclipse.org/content/repositories/paho-releases/"
+    }
+}
+configurations {
+    all {
+        exclude module: 'httpclient'
+        exclude module: 'commons-logging'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation 'com.android.support.constraint:constraint-layout:1.1.3'
+    testImplementation 'junit:junit:4.12'
+    implementation('org.eclipse.paho:org.eclipse.paho.android.service:1.1.1') {
+        exclude module: 'support-v4'
+    }
+    implementation('org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.1.1') {
+        exclude module: 'support-v4'
+    }
+    implementation 'com.android.support:appcompat-v7:27.1.1'
+    implementation 'com.android.support:mediarouter-v7:27.1.1'
+    implementation 'com.android.support:palette-v7:27.1.1'
+    implementation 'com.android.support:support-v4:27.1.1'
+    implementation 'com.android.support:design:27.1.1'
+    implementation 'commons-httpclient:commons-httpclient:3.1'
+    implementation 'com.alibaba:fastjson:1.2.44'
+    implementation 'com.github.pires:obd-java-api:1.0-RC16'
+    implementation 'com.google.android.gms:play-services:10.2.0'
+    implementation 'com.ibm.messaging:watson-iot:0.2.4'
+}

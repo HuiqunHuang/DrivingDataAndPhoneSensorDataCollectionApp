@@ -1,0 +1,205 @@
+/**
+ * Copyright 2016,2019 IBM Corp. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package obdii.starter.automotive.iot.ibm.com.iot4a_obdii.settings;
+
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.Bundle;
+import android.preference.EditTextPreference;
+import android.preference.ListPreference;
+import android.preference.Preference;
+import android.preference.PreferenceFragment;
+import android.preference.PreferenceManager;
+import android.text.InputType;
+
+import obdii.starter.automotive.iot.ibm.com.iot4a_obdii.R;
+import obdii.starter.automotive.iot.ibm.com.iot4a_obdii.obd.ObdBridge;
+
+import static obdii.starter.automotive.iot.ibm.com.iot4a_obdii.ObdAppConstants.DEFAULT_FREQUENCY_SEC;
+import static obdii.starter.automotive.iot.ibm.com.iot4a_obdii.ObdAppConstants.MAX_FREQUENCY_SEC;
+import static obdii.starter.automotive.iot.ibm.com.iot4a_obdii.ObdAppConstants.MIN_FREQUENCY_SEC;
+
+public class SettingsFragment extends PreferenceFragment {
+    public static final String APP_SERVER_URL = "app_server_url";
+    public static final String APP_SERVER_USERNAME = "app_server_username";
+    public static final String APP_SERVER_PASSWORD = "app_server_password";
+    public static final String PROTOCOL = "protocol"; // Protocol to send car probe data. HTTP/MQTT
+
+    public static final String ENDPOINT = "endpoint"; // VDH: URL, IoTP: organization id
+    public static final String TENANT_ID = "tenant_id"; // VDH: Tenant ID, IoTP: Tenant ID
+    public static final String VENDOR = "vendor"; // VDH: vendor, IoTP type id
+    public static final String USERNAME = "username"; //VDH: uesr, IoTP: N/A
+    public static final String PASSWORD = "password"; // VDH: password, IoTP: device token
+    public static final String MO_ID = "mo_id"; // VDH: mo_id, IoTP: device id
+    public static final String USER_AGENT = "userAgent"; // VDH: User-Agent, IoTP: N/A
+
+    public static final String BLUETOOTH_DEVICE_ID = "bt_device_id";
+    public static final String BLUETOOTH_DEVICE_NAME = "bt_device_name";
+    public static final String BLUETOOTH_DEVICE_ADDRESS = "bt_device_address";
+    public static final String OBD_TIMEOUT_MS = "obd_timeout_ms";
+    public static final String OBD_PROTOCOL = "obd_protocol";
+    public static final String UPLOAD_FREQUENCY = "upload_frequency";
+
+    public SettingsFragment() {
+        // Required empty public constructor
+    }
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        // Load the preferences from an XML resource
+        addPreferencesFromResource(R.xml.preferences);
+        initializeSettings();
+    }
+
+    public void initializeSettings() {
+        final Intent intent = getActivity().getIntent();
+        prepareEditTextPreference(APP_SERVER_URL, intent.getStringExtra(APP_SERVER_URL), "", true, null);
+        prepareEditTextPreference(APP_SERVER_USERNAME, intent.getStringExtra(APP_SERVER_USERNAME), "", true, null);
+        prepareEditTextPreference(APP_SERVER_PASSWORD, intent.getStringExtra(APP_SERVER_PASSWORD), "", true, null);
+        prepareEditTextPreference(BLUETOOTH_DEVICE_NAME, intent.getStringExtra(BLUETOOTH_DEVICE_NAME), "", false, null);
+        prepareEditTextPreference(BLUETOOTH_DEVICE_ADDRESS, intent.getStringExtra(BLUETOOTH_DEVICE_ADDRESS), "", false, null);
+        prepareEditTextPreference(UPLOAD_FREQUENCY, intent.getStringExtra(UPLOAD_FREQUENCY), "" + DEFAULT_FREQUENCY_SEC, true, new Preference.OnPreferenceChangeListener() {
+            @Override
+            public boolean onPreferenceChange(Preference preference, Object newValue) {
+                final int intValue = Integer.parseInt(newValue.toString());
+                if (MIN_FREQUENCY_SEC <= intValue && intValue <= MAX_FREQUENCY_SEC) {
+                    preference.setSummary(newValue.toString());
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        });
+        prepareEditTextPreference(OBD_TIMEOUT_MS, intent.getStringExtra(OBD_TIMEOUT_MS), "" + ObdBridge.DEFAULT_OBD_TIMEOUT_MS, true, new Preference.OnPreferenceChangeListener() {
+            @Override
+            public boolean onPreferenceChange(Preference preference, Object newValue) {
+                final int intValue = Integer.parseInt(newValue.toString());
+                if (ObdBridge.MIN_TIMEOUT_MS <= intValue && intValue <= ObdBridge.MAX_TIMEOUT_MS) {
+                    preference.setSummary(newValue.toString());
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        });
+        final CharSequence[] protocols = ObdBridge.getOBDProtocols();
+        prepareListPreference(OBD_PROTOCOL, intent.getStringExtra(OBD_PROTOCOL), "" + ObdBridge.DEFAULT_OBD_PROTOCOL, protocols, protocols);
+    }
+
+    private void prepareEditTextPreference(final String prefKey, final String currentValue, final String defaultValue, final boolean enabled, Preference.OnPreferenceChangeListener changeListener) {
+        final Preference preference = findPreference(prefKey);
+        if (preference instanceof EditTextPreference) {
+            final EditTextPreference editTextPref = (EditTextPreference) preference;
+            final SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getActivity());
+            final String storedValue = preferences.getString(prefKey, defaultValue);
+            final String valueToSet = currentValue != null ? currentValue : storedValue;
+            editTextPref.setText(valueToSet);
+            editTextPref.setEnabled(enabled);
+
+            if(editTextPref.getEditText().getInputType() == (InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD)) {
+                StringBuffer sb = new StringBuffer();
+                for(int i=0;i<editTextPref.getText().length();i++){
+                    sb.append("*");
+                }
+                editTextPref.setSummary(sb.toString());
+            }else{
+                editTextPref.setSummary(editTextPref.getText());
+            }
+            if (changeListener == null) {
+                changeListener = new Preference.OnPreferenceChangeListener() {
+                    @Override
+                    public boolean onPreferenceChange(Preference preference, Object newValue) {
+                        if(preference instanceof EditTextPreference){
+                            EditTextPreference editTextPref = (EditTextPreference)preference;
+                            if(editTextPref.getEditText().getInputType() == (InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD)) {
+                                StringBuffer sb = new StringBuffer();
+                                for(int i=0;i<newValue.toString().length();i++){
+                                    sb.append("*");
+                                }
+                                editTextPref.setSummary(sb.toString());
+                            }else{
+                                editTextPref.setSummary(newValue.toString());
+                            }
+                            return true;
+                        }
+                        return false;
+                    }
+                };
+            }
+            editTextPref.setOnPreferenceChangeListener(changeListener);
+        }
+    }
+
+    private void prepareListPreference(final String prefKey, final String currentValue, final String defaultValue, final CharSequence[] entries, CharSequence[] entryValues) {
+        final Preference preference = findPreference(prefKey);
+        if (preference instanceof ListPreference) {
+            final ListPreference listPref = (ListPreference) preference;
+            final SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getActivity());
+            final String storedValue = preferences.getString(prefKey, defaultValue);
+            final String valueToSet = currentValue != null ? currentValue : storedValue;
+            listPref.setEntries(entries);
+            listPref.setEntryValues(entryValues);
+            listPref.setValue(valueToSet);
+            listPref.setSummary(listPref.getValue());
+            listPref.setEnabled(true);
+
+            final Preference.OnPreferenceChangeListener changeListener = new Preference.OnPreferenceChangeListener() {
+                @Override
+                public boolean onPreferenceChange(Preference preference, Object newValue) {
+                    preference.setSummary(newValue.toString());
+                    return true;
+                }
+            };
+            listPref.setOnPreferenceChangeListener(changeListener);
+        }
+    }
+
+    private void setEditTextPreference(final String prefKey, final String value, final boolean enabled) {
+        final Preference preference = findPreference(prefKey);
+        if (preference instanceof EditTextPreference) {
+            final EditTextPreference editTextPref = (EditTextPreference) preference;
+            editTextPref.setEnabled(enabled);
+            editTextPref.setText(value);
+            editTextPref.setSummary(editTextPref.getText());
+            editTextPref.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+                @Override
+                public boolean onPreferenceChange(Preference preference, Object newValue) {
+                    preference.setSummary(newValue.toString());
+                    return true;
+                }
+            });
+        }
+    }
+
+    void setPreferenceValue(final String prefKey, final String value) {
+        final Preference preference = findPreference(prefKey);
+        if (preference instanceof EditTextPreference) {
+            ((EditTextPreference) preference).setText(value);
+        }
+    }
+
+    String getPreferenceValue(final String prefKey) {
+        final Preference preference = findPreference(prefKey);
+        if (preference instanceof EditTextPreference) {
+            return ((EditTextPreference) preference).getText();
+        } else {
+            return null;
+        }
+    }
+}
